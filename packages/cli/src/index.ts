@@ -10,6 +10,7 @@ import { statusCommand } from "./commands/status.js";
 import { radarCommand } from "./commands/radar.js";
 import { upCommand, downCommand } from "./commands/daemon.js";
 import { doctorCommand } from "./commands/doctor.js";
+import { exportCommand } from "./commands/export.js";
 
 const program = new Command();
 
@@ -28,5 +29,6 @@ program.addCommand(radarCommand);
 program.addCommand(upCommand);
 program.addCommand(downCommand);
 program.addCommand(doctorCommand);
+program.addCommand(exportCommand);
 
 program.parse();
