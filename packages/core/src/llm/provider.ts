@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
 import type { LLMConfig } from "../models/project.js";
 
 // === Streaming Monitor Types ===
@@ -124,7 +125,20 @@ export function createLLMClient(config: LLMConfig): LLMClient {
   const stream = config.stream ?? true;
 
   if (config.provider === "anthropic") {
-    // Anthropic SDK appends /v1/ internally — strip if user included it
+    // Vertex AI mode: use Google Cloud ADC instead of API key
+    if (config.vertexProjectId && config.vertexRegion) {
+      return {
+        provider: "anthropic",
+        apiFormat,
+        stream,
+        _anthropic: new AnthropicVertex({
+          projectId: config.vertexProjectId,
+          region: config.vertexRegion,
+        }) as unknown as Anthropic,
+        defaults,
+      };
+    }
+    // Direct API mode
     const baseURL = config.baseUrl.replace(/\/v1\/?$/, "");
     return {
       provider: "anthropic",
@@ -279,6 +293,8 @@ export async function chatCompletion(
   };
   const onStreamProgress = options?.onStreamProgress;
   const errorCtx = { baseUrl: client._openai?.baseURL ?? "(anthropic)", model };
+
+  console.log(`[LLM] provider=${client.provider} model=${model} stream=${client.stream}`);
 
   try {
     if (client.provider === "anthropic") {

@@ -95,6 +95,8 @@ export async function loadProjectConfig(
     llm.extra = { ...(llm.extra as Record<string, unknown> ?? {}), ...extraFromEnv };
   }
   if (env.INKOS_LLM_API_FORMAT) llm.apiFormat = env.INKOS_LLM_API_FORMAT;
+  if (env.INKOS_LLM_VERTEX_PROJECT_ID) llm.vertexProjectId = env.INKOS_LLM_VERTEX_PROJECT_ID;
+  if (env.INKOS_LLM_VERTEX_REGION) llm.vertexRegion = env.INKOS_LLM_VERTEX_REGION;
   config.llm = llm;
 
   // Global language override
@@ -106,7 +108,10 @@ export async function loadProjectConfig(
   const baseUrl = typeof llm.baseUrl === "string" ? llm.baseUrl : undefined;
   const apiKeyOptional = isApiKeyOptionalForEndpoint({ provider, baseUrl });
 
-  if (!apiKey && options?.requireApiKey !== false && !apiKeyOptional) {
+  // Vertex AI uses ADC (Application Default Credentials) — no API key needed
+  const isVertexAI = !!(llm.vertexProjectId && llm.vertexRegion);
+
+  if (!apiKey && options?.requireApiKey !== false && !apiKeyOptional && !isVertexAI) {
     throw new Error(
       "INKOS_LLM_API_KEY not set. Run 'inkos config set-global' or add it to project .env file.",
     );

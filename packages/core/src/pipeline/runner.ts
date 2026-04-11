@@ -214,9 +214,10 @@ export class PipelineRunner {
     return lengthSpec.countingMode === "en_words" ? "en" : "zh";
   }
 
-  private logStage(language: LengthLanguage, message: { zh: string; en: string }): void {
+  private logStage(language: LengthLanguage, message: { zh: string; en: string }, agent?: string): void {
+    const agentTag = agent ? `[${agent}] ` : "";
     this.config.logger?.info(
-      `${this.localize(language, { zh: "阶段：", en: "Stage: " })}${this.localize(language, message)}`,
+      `${agentTag}${this.localize(language, { zh: "阶段：", en: "Stage: " })}${this.localize(language, message)}`,
     );
   }
 
@@ -585,7 +586,7 @@ export class PipelineRunner {
       const bookDir = this.state.bookDir(bookId);
       const chapterNumber = await this.state.getNextChapterNumber(bookId);
       const stageLanguage = await this.resolveBookLanguage(book);
-      this.logStage(stageLanguage, { zh: "准备章节输入", en: "preparing chapter inputs" });
+      this.logStage(stageLanguage, { zh: "准备章节输入", en: "preparing chapter inputs" }, "radar+planner+composer");
       const writeInput = await this.prepareWriteInput(
         book,
         bookDir,
@@ -600,7 +601,7 @@ export class PipelineRunner {
       );
 
       const writer = new WriterAgent(this.agentCtxFor("writer", bookId));
-      this.logStage(stageLanguage, { zh: "撰写章节草稿", en: "writing chapter draft" });
+      this.logStage(stageLanguage, { zh: "撰写章节草稿", en: "writing chapter draft" }, "writer");
       const output = await writer.writeChapter({
         book,
         bookDir,
@@ -659,7 +660,7 @@ export class PipelineRunner {
       await writeFile(filePath, `${heading}\n\n${draftOutput.content}`, "utf-8");
 
       // Save truth files
-      this.logStage(stageLanguage, { zh: "落盘草稿与真相文件", en: "persisting draft and truth files" });
+      this.logStage(stageLanguage, { zh: "落盘草稿与真相文件", en: "persisting draft and truth files" }, "observer+reflector");
       await writer.saveChapter(bookDir, draftOutput, gp.numericalSystem, resolvedLang);
       await writer.saveNewTruthFiles(bookDir, draftOutput, resolvedLang);
       await this.syncLegacyStructuredStateFromMarkdown(bookDir, chapterNumber, draftOutput);
@@ -1157,7 +1158,7 @@ export class PipelineRunner {
     await this.assertNoPendingStateRepair(bookId);
     const chapterNumber = await this.state.getNextChapterNumber(bookId);
     const stageLanguage = await this.resolveBookLanguage(book);
-    this.logStage(stageLanguage, { zh: "准备章节输入", en: "preparing chapter inputs" });
+    this.logStage(stageLanguage, { zh: "准备章节输入", en: "preparing chapter inputs" }, "radar+planner+composer");
     const writeInput = await this.prepareWriteInput(
       book,
       bookDir,
@@ -1180,7 +1181,7 @@ export class PipelineRunner {
 
     // 1. Write chapter
     const writer = new WriterAgent(this.agentCtxFor("writer", bookId));
-    this.logStage(stageLanguage, { zh: "撰写章节草稿", en: "writing chapter draft" });
+    this.logStage(stageLanguage, { zh: "撰写章节草稿", en: "writing chapter draft" }, "writer");
     const output = await writer.writeChapter({
       book,
       bookDir,
@@ -1230,8 +1231,8 @@ export class PipelineRunner {
     const normalizeApplied = reviewResult.normalizeApplied;
 
     // 4. Save the final chapter and truth files from a single persistence source
-    this.logStage(stageLanguage, { zh: "落盘最终章节", en: "persisting final chapter" });
-    this.logStage(stageLanguage, { zh: "生成最终真相文件", en: "rebuilding final truth files" });
+    this.logStage(stageLanguage, { zh: "落盘最终章节", en: "persisting final chapter" }, "observer+reflector");
+    this.logStage(stageLanguage, { zh: "生成最终真相文件", en: "rebuilding final truth files" }, "observer+reflector");
     const chapterIndexBeforePersist = await this.state.loadChapterIndex(bookId);
     const { resolveDuplicateTitle } = await import("../agents/post-write-validator.js");
     const initialTitleResolution = resolveDuplicateTitle(
@@ -2203,8 +2204,8 @@ ${matrix}`,
     }
 
     this.logInfo(this.languageFromLengthSpec(params.lengthSpec), {
-      zh: `审计前字数归一化：第${params.chapterNumber}章 ${writerCount} -> ${normalized.finalCount}`,
-      en: `Length normalization before audit for chapter ${params.chapterNumber}: ${writerCount} -> ${normalized.finalCount}`,
+      zh: `[normalizer] 审计前字数归一化：第${params.chapterNumber}章 ${writerCount} -> ${normalized.finalCount}`,
+      en: `[normalizer] Length normalization before audit for chapter ${params.chapterNumber}: ${writerCount} -> ${normalized.finalCount}`,
     });
 
     return {

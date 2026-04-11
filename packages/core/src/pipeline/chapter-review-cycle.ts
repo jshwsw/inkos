@@ -94,8 +94,8 @@ export async function runChapterReviewCycle(params: {
 
   if (params.initialOutput.postWriteErrors.length > 0) {
     params.logWarn({
-      zh: `检测到 ${params.initialOutput.postWriteErrors.length} 个后写错误，审计前触发 spot-fix 修补`,
-      en: `${params.initialOutput.postWriteErrors.length} post-write errors detected, triggering spot-fix before audit`,
+      zh: `[reviser] 检测到 ${params.initialOutput.postWriteErrors.length} 个后写错误，审计前触发 spot-fix 修补`,
+      en: `[reviser] ${params.initialOutput.postWriteErrors.length} post-write errors detected, triggering spot-fix before audit`,
     });
     const reviser = params.createReviser();
     const spotFixIssues = params.initialOutput.postWriteErrors.map((violation) => ({
@@ -131,7 +131,7 @@ export async function runChapterReviewCycle(params: {
   normalizeApplied = normalizeApplied || normalizedBeforeAudit.applied;
   params.assertChapterContentNotEmpty(finalContent, "draft generation");
 
-  params.logStage({ zh: "审计草稿", en: "auditing draft" });
+  params.logStage({ zh: "[auditor] 审计草稿", en: "[auditor] auditing draft" });
   const llmAudit = await params.auditor.auditChapter(
     params.bookDir,
     finalContent,

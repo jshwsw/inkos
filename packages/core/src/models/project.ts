@@ -5,6 +5,8 @@ export const LLMConfigSchema = z.object({
   baseUrl: z.string().url(),
   apiKey: z.string().default(""),
   model: z.string().min(1),
+  vertexProjectId: z.string().optional(),
+  vertexRegion: z.string().optional(),
   temperature: z.number().min(0).max(2).default(0.7),
   maxTokens: z.number().int().min(1).default(8192),
   thinkingBudget: z.number().int().min(0).default(0),
