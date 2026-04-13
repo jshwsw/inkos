@@ -244,7 +244,7 @@ export class WriterAgent extends BaseAgent {
     });
 
     // Scale maxTokens to chapter word count (Chinese ≈ 1.5 tokens/char)
-    const creativeMaxTokens = Math.max(8192, Math.ceil(targetWords * 2));
+    const creativeMaxTokens = Math.max(8192, Math.ceil(targetWords * 4));
 
     const creativeResponse = await this.chat(
       [

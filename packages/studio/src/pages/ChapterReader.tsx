@@ -84,8 +84,8 @@ export function ChapterReader({ bookId, chapterNumber, nav, theme, t }: {
   if (error) return <div className="text-destructive p-8 bg-destructive/5 rounded-xl border border-destructive/20">Error: {error}</div>;
   if (!data) return null;
 
-  // Split markdown content into title and body
-  const lines = data.content.split("\n");
+  // Split markdown content into title and body (normalize \r\n → \n for Windows)
+  const lines = data.content.replace(/\r\n/g, "\n").split("\n");
   const titleLine = lines.find((l) => l.startsWith("# "));
   const title = titleLine?.replace(/^#\s*/, "") ?? `Chapter ${chapterNumber}`;
   const body = lines

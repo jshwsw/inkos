@@ -134,6 +134,7 @@ export function createLLMClient(config: LLMConfig): LLMClient {
         _anthropic: new AnthropicVertex({
           projectId: config.vertexProjectId,
           region: config.vertexRegion,
+          timeout: 30 * 60 * 1000, // 30 minutes for extended thinking
         }) as unknown as Anthropic,
         defaults,
       };
@@ -144,7 +145,7 @@ export function createLLMClient(config: LLMConfig): LLMClient {
       provider: "anthropic",
       apiFormat,
       stream,
-      _anthropic: new Anthropic({ apiKey: config.apiKey, baseURL }),
+      _anthropic: new Anthropic({ apiKey: config.apiKey, baseURL, timeout: 30 * 60 * 1000 }),
       defaults,
     };
   }
@@ -210,6 +211,7 @@ function stripReservedKeys(extra: Record<string, unknown>): Record<string, unkno
 
 function wrapLLMError(error: unknown, context?: { readonly baseUrl?: string; readonly model?: string }): Error {
   const msg = String(error);
+  console.error(`[LLM] Raw API error: ${msg}`);
   const ctxLine = context
     ? `\n  (baseUrl: ${context.baseUrl}, model: ${context.model})`
     : "";
@@ -284,11 +286,17 @@ export async function chatCompletion(
     readonly onStreamProgress?: OnStreamProgress;
   },
 ): Promise<LLMResponse> {
-  const perCallMax = options?.maxTokens ?? client.defaults.maxTokens;
+  let perCallMax = options?.maxTokens ?? client.defaults.maxTokens;
   const cap = client.defaults.maxTokensCap;
+  if (cap !== null) perCallMax = Math.min(perCallMax, cap);
+  // When thinking is enabled, max_tokens must exceed budget_tokens
+  const thinkingBudget = client.defaults.thinkingBudget;
+  if (thinkingBudget > 0 && perCallMax <= thinkingBudget) {
+    perCallMax = thinkingBudget + (options?.maxTokens ?? client.defaults.maxTokens);
+  }
   const resolved = {
     temperature: options?.temperature ?? client.defaults.temperature,
-    maxTokens: cap !== null ? Math.min(perCallMax, cap) : perCallMax,
+    maxTokens: perCallMax,
     extra: client.defaults.extra,
   };
   const onStreamProgress = options?.onStreamProgress;
@@ -384,9 +392,14 @@ export async function chatWithTools(
   },
 ): Promise<ChatWithToolsResult> {
   try {
+    let toolsMaxTokens = options?.maxTokens ?? client.defaults.maxTokens;
+    const toolsThinking = client.defaults.thinkingBudget;
+    if (toolsThinking > 0 && toolsMaxTokens <= toolsThinking) {
+      toolsMaxTokens = toolsThinking + (options?.maxTokens ?? client.defaults.maxTokens);
+    }
     const resolved = {
       temperature: options?.temperature ?? client.defaults.temperature,
-      maxTokens: options?.maxTokens ?? client.defaults.maxTokens,
+      maxTokens: toolsMaxTokens,
     };
     // Tool-calling always uses streaming (only used by agent loop, not by writer/auditor)
     if (client.provider === "anthropic") {
@@ -798,6 +811,12 @@ async function chatCompletionAnthropic(
     .join("\n\n");
   const nonSystem = messages.filter((m) => m.role !== "system");
 
+  if (thinkingBudget > 0) {
+    console.log(`[LLM] thinking ENABLED — budget_tokens: ${thinkingBudget}, model: ${model}`);
+  } else {
+    console.log(`[LLM] thinking OFF — temperature: ${options.temperature}, model: ${model}`);
+  }
+
   const stream = await client.messages.create({
     model,
     ...(systemText ? { system: systemText } : {}),
@@ -815,11 +834,24 @@ async function chatCompletionAnthropic(
   const chunks: string[] = [];
   let inputTokens = 0;
   let outputTokens = 0;
+  let thinkingChars = 0;
   const monitor = createStreamMonitor(onStreamProgress);
 
   try {
     for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "thinking_delta") {
+        const prevK = Math.floor(thinkingChars / 5000);
+        thinkingChars += (event.delta as unknown as { thinking: string }).thinking?.length ?? 0;
+        const currK = Math.floor(thinkingChars / 5000);
+        if (currK > prevK) {
+          console.log(`[LLM] thinking... ${thinkingChars} chars`);
+        }
+      }
       if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        if (thinkingChars > 0) {
+          console.log(`[LLM] thinking complete — ${thinkingChars} chars`);
+          thinkingChars = 0;
+        }
         chunks.push(event.delta.text);
         monitor.onChunk(event.delta.text);
       }

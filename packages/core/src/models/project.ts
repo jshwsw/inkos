@@ -68,6 +68,7 @@ export const AgentLLMOverrideSchema = z.object({
   baseUrl: z.string().url().optional(),
   apiKeyEnv: z.string().optional(),
   stream: z.boolean().optional(),
+  thinkingBudget: z.number().int().min(0).optional(),
 });
 
 export type AgentLLMOverride = z.infer<typeof AgentLLMOverrideSchema>;
