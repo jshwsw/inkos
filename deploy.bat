@@ -29,7 +29,7 @@ if %errorlevel% neq 0 (
 
 :: Install dependencies
 echo ^>^>^> pnpm install
-call pnpm install --frozen-lockfile
+call pnpm install
 if %errorlevel% neq 0 (
     echo Error: pnpm install failed.
     exit /b 1
@@ -43,10 +43,16 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+:: Install CLI globally
+echo ^>^>^> Installing inkos CLI globally...
+cd packages\cli
+call npm install -g .
+cd /d "%~dp0"
+
 echo.
 echo === Build complete ===
 echo.
-echo To start InkOS Studio:  cd packages\studio ^&^& node dist\api\index.js
-echo To use CLI:             cd packages\cli ^&^& node dist\index.js
+echo inkos CLI is now available globally.
+echo To start InkOS Studio:  inkos studio
 
 endlocal

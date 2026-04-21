@@ -22,14 +22,19 @@ fi
 
 # Install dependencies
 echo ">>> pnpm install"
-pnpm install --frozen-lockfile
+pnpm install
 
 # Build all packages
 echo ">>> pnpm build"
 pnpm build
 
+# Install CLI globally
+echo ">>> Installing inkos CLI globally..."
+cd packages/cli && npm install -g .
+cd "$SCRIPT_DIR"
+
 echo ""
 echo "=== Build complete ==="
 echo ""
-echo "To start InkOS Studio:  cd packages/studio && node dist/api/index.js"
-echo "To use CLI:             cd packages/cli && node dist/index.js"
+echo "inkos CLI is now available globally."
+echo "To start InkOS Studio:  inkos studio"
